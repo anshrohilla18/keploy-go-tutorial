@@ -173,9 +173,9 @@ Keploy has captured test cases for the user's application. {"testcase name": "ge
 Keploy has captured test cases for the user's application. {"testcase name": "get-links-by-id-1"}
 Keploy has captured test cases for the user's application. {"testcase name": "post-create-3"}
 ```
-<Screenshot src="/images/record.png" alt="Terminal running keploy record, with five captured test cases listed" caption="Keploy logging each captured test case during recording." />
+<Screenshot src="/images/record-capture.png" alt="Terminal running keploy record, with five captured test cases listed" caption="Keploy logging each captured test case during recording." />
 
-<Screenshot src="/images/curl-responses.png" alt="Five curl requests and their responses" caption="The five requests I sent, and their responses." />
+<Screenshot src="/images/curl-responses.png" alt="curl requests and their responses" caption="Responses to the last four requests (the first create call scrolled out of view). The table above lists all five." />
 
 Press **Ctrl+C once** in Terminal 1 and wait a few seconds. The app shuts down gracefully and Keploy writes its files.
 
@@ -193,7 +193,6 @@ TESTRUN SUMMARY. For test-set: "test-set-0"
         Total test passed:  5
         Total test failed:  0
 ```
-<Screenshot src="/images/test-pass.png" alt="Keploy test run summary showing 5 of 5 tests passed" caption="All five recorded tests passing on replay." />
 
 Keploy started the app, replayed all five requests, and compared each response with the recorded one.
 

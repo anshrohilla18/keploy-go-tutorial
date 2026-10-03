@@ -55,4 +55,4 @@ next.config.mjs    # MDX and plugin configuration
 
 ## Deployment
 
-Deployed on [Vercel](https://vercel.com).
+Live site: https://keploy-go-tutorial-nine.vercel.app (deployed on [Vercel](https://vercel.com)).
