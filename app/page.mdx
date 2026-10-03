@@ -128,7 +128,7 @@ sudo env ConnectionString="$ConnectionString" keploy record -c "./main"
 
 <Callout type="why" title="Why sudo env ...?">
 
-Keploy needs `sudo`, but `sudo` normally drops your environment variables, and the app exits with `Connection string empty` without its `ConnectionString`. The quickstart's `sudo -E PATH=$PATH` form did not work for me (see Troubleshooting), so I pass the one variable explicitly with `env`.
+Keploy needs `sudo`, but `sudo` normally drops your environment variables, and the app exits with `Connection string empty` without its `ConnectionString`. The `sudo -E PATH=$PATH keploy ...` form I first tried did not work for me (see Troubleshooting), so I pass the one variable explicitly with `env`.
 
 </Callout>
 
@@ -268,7 +268,7 @@ To record again later, start MySQL with the same `docker run` command from Step 
 
 ### `sudo: preserving the entire environment is not supported, '-E' is ignored`
 
-The quickstart uses `sudo -E PATH=$PATH keploy ...`. On my Ubuntu 26.04 under WSL, `sudo` ignored `-E`, and the `PATH=$PATH` part then failed with a `command not found` error. WSL copies your Windows `PATH` into Ubuntu, and mine contains spaces (like `Program Files`), which appears to have confused `sudo`. Passing only the variable the app needs fixed it:
+I first ran `sudo -E PATH=$PATH keploy record -c "./main"`, adapted from the `sudo -E` pattern in Keploy's Go quickstarts. On my Ubuntu 26.04 under WSL, `sudo` ignored `-E`, and the `PATH=$PATH` part then failed with a `command not found` error. WSL copies your Windows `PATH` into Ubuntu, and mine contains spaces (like `Program Files`), which appears to have confused `sudo`. Passing only the variable the app needs fixed it:
 
 ```bash
 sudo env ConnectionString="$ConnectionString" keploy record -c "./main"
