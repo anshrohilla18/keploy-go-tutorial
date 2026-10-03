@@ -1,26 +1,61 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #fafaf9;
+  --fg: #1c1917;
+  --muted: #57534e;
+  --border: #e7e5e4;
+  --accent: #ea580c;
+  --inline-code-bg: #f5f5f4;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --bg: #0c0a09;
+  --fg: #e7e5e4;
+  --muted: #a8a29e;
+  --border: #292524;
+  --accent: #fb923c;
+  --inline-code-bg: #1c1917;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.7;
+}
+
+/* Article typography */
+.prose a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.prose code::before, .prose code::after { content: none; }
+.prose :not(pre) > code {
+  background: var(--inline-code-bg);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+  font-weight: 500;
+  font-size: 0.875em;
+}
+
+/* Code blocks (rehype-pretty-code output) */
+.prose figure[data-rehype-pretty-code-figure] { margin: 1.5rem 0; }
+.prose pre {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 2.75rem 0 1rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+.prose pre code { background: none; padding: 0; font-size: inherit; display: grid; }
+.prose pre [data-line] { padding: 0 1rem; }
+.prose pre {
+  scrollbar-width: thin;
+  scrollbar-color: #444c56 transparent;
 }

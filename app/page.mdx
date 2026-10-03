@@ -1,0 +1,301 @@
+# Test Your Go API with Keploy
+
+I had never used Keploy before this assignment. This is the path I took to record API tests for a small Go app, replay them, and understand what actually happened, including the parts where I got stuck. Everything here was run on my own machine in October 2026.
+
+<Callout type="info" title="What you'll end up with">
+
+A Go URL shortener backed by MySQL, five test cases recorded automatically from real requests, and a passing replay that works even with the database switched off.
+
+</Callout>
+
+## What you'll build
+
+You will run a small URL shortener written in Go (using the Gorilla/Mux router) with MySQL as its database. It has three endpoints:
+
+| Endpoint | What it does |
+|---|---|
+| `POST /create` | Saves a URL and returns a short link. The URL must start with `http://` or `https://` |
+| `GET /links/{id}` | Redirects to the saved URL |
+| `GET /all` | Lists every saved link |
+
+Then you will let Keploy watch the app while you call these endpoints, turn those calls into test cases, and replay them.
+
+## Before you start
+
+You need:
+
+- A Linux environment. I used **WSL2 with Ubuntu** on Windows 11. A native Linux machine works the same way.
+- **Docker**, reachable from inside that Linux environment (check with `docker ps`). With Docker Desktop on Windows, `docker ps` worked inside Ubuntu for me without changing any settings.
+- **Git** and **Go** installed in that same environment
+
+These are the exact versions from my run:
+
+| Tool | Version |
+|---|---|
+| Windows | 11 Pro |
+| Ubuntu on WSL2 | 26.04.1 LTS (kernel 6.18.33.2) |
+| Go | 1.27.1 |
+| Docker | 29.8.1 |
+| MySQL image | `mysql:latest` (server 26.7.0) |
+| Keploy | 3.6.86 (open-source build) |
+
+<Callout type="warning" title="Run Linux commands in Linux">
+
+On Windows, every command in Steps 1 to 6 goes in the **Ubuntu** terminal, not PowerShell. The prompt looks like `you@PCNAME:~$`. A prompt starting with `PS C:\` is PowerShell, and several of these commands behave differently there.
+
+</Callout>
+
+## How Keploy works
+
+Normally you write API tests by hand: build the request, guess the expected response, and fake the database. Keploy flips this. You use your app normally, and Keploy writes the tests from what it saw.
+
+<HowKeployWorks />
+
+During `keploy record`, Keploy starts your app itself and sits in the path of its network traffic. In my logs it started a proxy and its own DNS server, and set up forwarding in front of the app's port 8080. Every request that comes in, and every conversation with the database, gets saved. During `keploy test`, it replays the saved requests and answers the app's database calls from the saved copies instead of a real database.
+
+<Callout type="why">
+
+The saved database responses are called **mocks**. They are why the tests are repeatable: the replay doesn't depend on whatever data happens to be in a database today.
+
+</Callout>
+
+## Step 1: Get the app and its database
+
+Clone the samples repository and enter the MySQL example:
+
+```bash
+git clone https://github.com/keploy/samples-go.git && cd samples-go/mux-mysql
+go mod download
+```
+
+Start MySQL in Docker:
+
+```bash
+docker run -p 3306:3306 --rm --name mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:latest
+```
+
+MySQL needs a few seconds to boot. Check its logs and wait for a line saying it is ready for connections:
+
+```bash
+docker logs mysql 2>&1 | tail -5
+```
+
+Tell the app how to reach the database, then build it:
+
+```bash
+export ConnectionString="root:my-secret-pw@tcp(localhost:3306)/mysql"
+go build -o main
+```
+
+`ls -l main` should now show a built binary of about 10 MB. If you want to be sure the app works before adding Keploy, run `./main`. It should print `*** DB Initiated at ***` and `Server is running on port:8080`. Stop it with Ctrl+C.
+
+<Callout type="tip">
+
+The app creates its own `list` table on startup, so there is no database setup to do by hand.
+
+</Callout>
+
+## Step 2: Install Keploy
+
+Inside Ubuntu:
+
+```bash
+curl --silent --location "https://github.com/keploy/keploy/releases/latest/download/keploy_linux_amd64.tar.gz" | tar xz --overwrite -C /tmp
+sudo mkdir -p /usr/local/bin && sudo mv /tmp/keploy /usr/local/bin/keploy
+keploy --version
+```
+
+I got `Keploy 3.6.86`.
+
+<Callout type="warning" title="Check which Keploy build you installed">
+
+My `keploy --version` printed a banner saying this is Keploy's open-source build, which supports HTTP and MySQL, and that PostgreSQL, MongoDB and others are part of the full Keploy from keploy.io (free with an account). I had planned to use a Gin + MongoDB quickstart, so this made me switch to a MySQL-based one. If you hit this too, check what your quickstart's database needs before you start.
+
+</Callout>
+
+## Step 3: Record test cases
+
+You need two Ubuntu terminals.
+
+**Terminal 1:** start the app under Keploy:
+
+```bash
+cd ~/samples-go/mux-mysql
+sudo env ConnectionString="$ConnectionString" keploy record -c "./main"
+```
+
+`-c` is the command Keploy uses to start your app. Wait until you see your app's `Server is running on port:8080` line and a Keploy line saying it started ingress forwarding.
+
+<Callout type="why" title="Why sudo env ...?">
+
+Keploy needs `sudo`, but `sudo` normally drops your environment variables, and the app exits with `Connection string empty` without its `ConnectionString`. The quickstart's `sudo -E PATH=$PATH` form did not work for me (see Troubleshooting), so I pass the one variable explicitly with `env`.
+
+</Callout>
+
+**Terminal 2:** send some requests. These are the five I used:
+
+```bash
+curl -i -X POST http://localhost:8080/create \
+  -H "Content-Type: application/json" \
+  -d '{"link": "https://keploy.io"}'
+
+curl -i -X POST http://localhost:8080/create \
+  -H "Content-Type: application/json" \
+  -d '{"link": "https://go.dev"}'
+
+curl -i http://localhost:8080/all
+
+curl -i http://localhost:8080/links/1
+
+curl -i -X POST http://localhost:8080/create \
+  -H "Content-Type: application/json" \
+  -d '{"link": "not-a-url"}'
+```
+
+Here is what came back:
+
+| Request | Response |
+|---|---|
+| Create `https://keploy.io` | `200 OK`, link `http://localhost:8080/links/1` |
+| Create `https://go.dev` | `200 OK`, link `http://localhost:8080/links/2` |
+| `GET /all` | `200 OK`, both saved sites |
+| `GET /links/1` | `307 Temporary Redirect` to `https://keploy.io` |
+| Create `not-a-url` | `400 Bad Request`, "Enter Valid url" message |
+
+I included the invalid URL on purpose. A failure case is a test too.
+
+Back in Terminal 1, Keploy logged one line per request, each ending with a test case name (trimmed here):
+
+```text
+Keploy has captured test cases for the user's application. {"testcase name": "post-create-1"}
+Keploy has captured test cases for the user's application. {"testcase name": "post-create-2"}
+Keploy has captured test cases for the user's application. {"testcase name": "get-all-1"}
+Keploy has captured test cases for the user's application. {"testcase name": "get-links-by-id-1"}
+Keploy has captured test cases for the user's application. {"testcase name": "post-create-3"}
+```
+<Screenshot src="/images/record.png" alt="Terminal running keploy record, with five captured test cases listed" caption="Keploy logging each captured test case during recording." />
+
+<Screenshot src="/images/curl-responses.png" alt="Five curl requests and their responses" caption="The five requests I sent, and their responses." />
+
+Press **Ctrl+C once** in Terminal 1 and wait a few seconds. The app shuts down gracefully and Keploy writes its files.
+
+## Step 4: Replay the tests
+
+```bash
+sudo env ConnectionString="$ConnectionString" keploy test -c "./main" --delay 10
+```
+
+`--delay 10` makes Keploy wait 10 seconds after starting the app before sending requests, so the app is ready. This is what I got:
+
+```text
+TESTRUN SUMMARY. For test-set: "test-set-0"
+        Total tests:        5
+        Total test passed:  5
+        Total test failed:  0
+```
+<Screenshot src="/images/test-pass.png" alt="Keploy test run summary showing 5 of 5 tests passed" caption="All five recorded tests passing on replay." />
+
+Keploy started the app, replayed all five requests, and compared each response with the recorded one.
+
+## Step 5: Look at what Keploy saved
+
+Recording created a `keploy` folder in the project:
+
+```text
+keploy/test-set-0/mocks.yaml
+keploy/test-set-0/tests/post-create-1.yaml
+keploy/test-set-0/tests/post-create-2.yaml
+keploy/test-set-0/tests/post-create-3.yaml
+keploy/test-set-0/tests/get-all-1.yaml
+keploy/test-set-0/tests/get-links-by-id-1.yaml
+```
+
+The tests are plain, readable YAML. Here is part of `post-create-1.yaml` (trimmed):
+
+```yaml
+kind: Http
+name: post-create-1
+spec:
+  req:
+    method: POST
+    url: http://localhost:8080/create
+    body: '{"link": "https://keploy.io"}'
+  resp:
+    status_code: 200
+    body: |
+      {"message":"Converted","link":"http://localhost:8080/links/1","status":true}
+  assertions:
+    noise:
+      header.Date: []
+```
+
+Two things I noticed:
+
+- Keploy marked the `Date` response header as **noise**. It changes on every request, so it is ignored when comparing responses. Otherwise every replay would fail.
+- The file even includes a ready-made `curl` command for the request.
+
+`mocks.yaml` (439 lines in my run) holds the recorded MySQL conversation: the connection handshake, then the queries and their responses.
+
+## Step 6: Run the tests without a database
+
+Stop MySQL:
+
+```bash
+docker stop mysql
+docker ps
+```
+
+`docker ps` should show no `mysql` container. Run the same test command again:
+
+```bash
+sudo env ConnectionString="$ConnectionString" keploy test -c "./main" --delay 10
+```
+
+It still reported **5 passed, 0 failed**, and the app started normally with `*** DB Initiated at ***`, even though no database existed. Keploy answered every MySQL call from `mocks.yaml`.
+
+<Screenshot src="/images/mysql-off-start.png" alt="docker stop mysql, an empty docker ps, and keploy test starting" caption="docker ps shows no containers, and the replay starts." />
+
+<Screenshot src="/images/mysql-off-summary.png" alt="Keploy test summary showing 5 of 5 tests passed with MySQL stopped" caption="The same replay finishing with 5 passed, 0 failed." />
+
+<Callout type="why">
+
+This is the moment Keploy made sense to me. The test no longer needs a database, so there is no setup, no cleanup and no shared state to break it.
+
+</Callout>
+
+To record again later, start MySQL with the same `docker run` command from Step 1.
+
+## Troubleshooting
+
+### `sudo: preserving the entire environment is not supported, '-E' is ignored`
+
+The quickstart uses `sudo -E PATH=$PATH keploy ...`. On my Ubuntu 26.04 under WSL, `sudo` ignored `-E`, and the `PATH=$PATH` part then failed with a `command not found` error. WSL copies your Windows `PATH` into Ubuntu, and mine contains spaces (like `Program Files`), which appears to have confused `sudo`. Passing only the variable the app needs fixed it:
+
+```bash
+sudo env ConnectionString="$ConnectionString" keploy record -c "./main"
+```
+
+### `curl` errors in PowerShell
+
+If you paste the `curl` commands into PowerShell you will get errors about `-H` and `-d`. In PowerShell, `curl` is a different command, and it does not understand backslash line breaks. Run the requests in the Ubuntu terminal.
+
+### `Command 'wsl' not found`
+
+I typed `wsl` while already inside Ubuntu. `wsl` is a Windows command that starts Linux, so inside Linux there is nothing to start. Ignore it.
+
+### `Connection string empty`
+
+The app's code exits with this message if the `ConnectionString` variable is not set. `export` only lasts for the terminal where you ran it, so set it again in any new terminal.
+
+## What I learned
+
+- **Tests come from real usage.** Five `curl` calls gave me five test cases, with no test code written.
+- **The mocks are the clever part.** Recording the database conversation is what lets tests run with no database at all.
+- **The files are readable.** Plain YAML means you can review, edit and commit them like code.
+- **Setup friction was real.** Most of my time went into environment issues (WSL, `sudo`, which Keploy build I had), not Keploy itself. That is the part I would document first for a new user.
+
+## Next steps
+
+- Re-run the exercise with your own changes to the app and see what Keploy reports after the recorded behavior changes.
+- Record more cases, such as a redirect for an id that does not exist.
+- Read the original [Mux + MySQL quickstart](https://keploy.io/docs/quickstart/samples-mysql/) and compare it with my notes, and browse the rest of the [Keploy docs](https://keploy.io/docs/).

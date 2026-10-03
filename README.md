@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Test Your Go API with Keploy
 
-## Getting Started
+A beginner-friendly, single-page tutorial for recording and replaying API tests of a Go application with [Keploy](https://keploy.io), built with Next.js and MDX.
 
-First, run the development server:
+## What the tutorial covers
+
+I ran Keploy's Go + MySQL (Gorilla/Mux) quickstart on my own machine and wrote up the experience for developers who have never used Keploy:
+
+- Running the sample app and MySQL
+- Recording test cases with `keploy record`
+- Replaying them with `keploy test`
+- What the generated test and mock files contain
+- Running the tests with the database switched off
+- Setup problems I hit (WSL, `sudo`, `curl` in PowerShell) and how I fixed them
+
+## Tech stack
+
+- [Next.js](https://nextjs.org) (App Router)
+- MDX via `@next/mdx`
+- Tailwind CSS with `@tailwindcss/typography`
+- Syntax highlighting with `rehype-pretty-code` and Shiki
+- Custom MDX components: `Callout`, `HowKeployWorks`, `Screenshot`, and a code block with a copy button
+- Light and dark mode
+
+## Run it locally
+
+Requires Node.js.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build for production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```text
+app/
+  layout.tsx       # page shell, header, theme script, table of contents
+  page.mdx         # the tutorial content
+  globals.css      # theme variables and article styles
+components/        # MDX components and UI pieces
+public/images/     # screenshots from my own runs
+mdx-components.tsx # registers custom components for MDX
+next.config.mjs    # MDX and plugin configuration
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deployed on [Vercel](https://vercel.com).
